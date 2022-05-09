@@ -1,99 +1,99 @@
+#include <string_view>
+#include <utility>
+#include <stdexcept>
+#include <sys/stat.h>
 #include "SuperRes.h"
 
-using namespace std;
-using namespace cv;
-using namespace dnn;
-using namespace dnn_superres;
+constexpr std::pair<std::string_view, std::string_view> EDSR_NAME_AND_SUBPATH = {"edsr", "/EDSR/EDSR_x"};
+constexpr std::pair<std::string_view, std::string_view> FSRCNN_NAME_AND_SUBPATH = {"fsrcnn", "/FSRCNN/FSRCNN_x"};
+constexpr std::pair<std::string_view, std::string_view> FSRCNN_SMALL_NAME_AND_SUBPATH = {"fsrcnn", "/FSRCNN/FSRCNN-small_x"};
+constexpr std::pair<std::string_view, std::string_view> LAPSRN_NAME_AND_SUBPATH = {"lapsrn", "/LapSRN/LapSRN_x"};
+constexpr std::pair<std::string_view, std::string_view> ESPCN_NAME_AND_SUBPATH = {"espcn", "/ESPCN/ESPCN_x"};
+constexpr std::string_view MODEl_FILE_EXTENSION = ".pb";
 
-struct Hacker {
-    dnn::Net net;
-};
-
-string SuperRes::getFolderPath()
+SuperRes::SuperRes(const std::string &modelFolderPath, Algo algo, unsigned short upscaleFactor)
 {
-    return m_folderPath;
+    setModelFolderPath(modelFolderPath);
+    setAlgoAndScale(algo, upscaleFactor);
 }
 
-void SuperRes::setFolderPath(const std::string& folderPath)
+void SuperRes::setModelFolderPath(const std::string &modelFolderPath)
 {
-    if(!pathExists(folderPath))
+    if (!PathExists(modelFolderPath))
     {
-        throw invalid_argument("cannot access "+folderPath);
+        throw std::invalid_argument("Cannot access " + modelFolderPath);
     }
-    m_folderPath=folderPath;
+    _modelsFolderPath = modelFolderPath;
+    if (_parametersSet)
+    {
+        setAlgoAndScale(_algo, _upscaleFactor);
+    }
 }
 
-void SuperRes::setAlgoAndScale(std::string algo, unsigned short scale)
+void SuperRes::setAlgoAndScale(Algo algo, unsigned short upscaleFactor)
 {
-    if(scale<2 || (scale>4 && algo!="lapsrn") || (algo=="lapsrn" && (scale>8 || scale%2!=0)))
+    if (upscaleFactor < 2 || (upscaleFactor > 4 && algo != Algo::LapSRN) || (algo == Algo::LapSRN && (upscaleFactor > 8 || upscaleFactor % 2 != 0)))
     {
-        throw invalid_argument("undefined scale");
+        throw std::invalid_argument("undefined upscaleFactor");
     }
-    if(algo=="edsr") /// photo
+    std::string algoStr;
+    switch (algo)
     {
-        m_path=m_folderPath+"/EDSR/EDSR_x"+to_string(scale)+".pb";
+    case Algo::EDSR:
+        _inferenceModelPath = _modelsFolderPath + std::string(EDSR_NAME_AND_SUBPATH.second) + std::to_string(upscaleFactor) + std::string(MODEl_FILE_EXTENSION);
+        algoStr = std::string(EDSR_NAME_AND_SUBPATH.first);
+        break;
+    case Algo::FSRCNN:
+        _inferenceModelPath = _modelsFolderPath + std::string(FSRCNN_NAME_AND_SUBPATH.second) + std::to_string(upscaleFactor) + std::string(MODEl_FILE_EXTENSION);
+        algoStr = std::string(FSRCNN_NAME_AND_SUBPATH.first);
+        break;
+    case Algo::FSRCNN_SMALL:
+        _inferenceModelPath = _modelsFolderPath + std::string(FSRCNN_SMALL_NAME_AND_SUBPATH.second) + std::to_string(upscaleFactor) + std::string(MODEl_FILE_EXTENSION);
+        algoStr = std::string(FSRCNN_SMALL_NAME_AND_SUBPATH.first);
+        break;
+    case Algo::LapSRN:
+        _inferenceModelPath = _modelsFolderPath + std::string(LAPSRN_NAME_AND_SUBPATH.second) + std::to_string(upscaleFactor) + std::string(MODEl_FILE_EXTENSION);
+        algoStr = std::string(LAPSRN_NAME_AND_SUBPATH.first);
+        break;
+    case Algo::ESPCN:
+        _inferenceModelPath = _modelsFolderPath + std::string(ESPCN_NAME_AND_SUBPATH.second) + std::to_string(upscaleFactor) + std::string(MODEl_FILE_EXTENSION);
+        algoStr = std::string(ESPCN_NAME_AND_SUBPATH.first);
+        break;
     }
-    else if(algo=="fsrcnn")
-    {
-        m_path=m_folderPath+"/FSRCNN/FSRCNN_x"+to_string(scale)+".pb";
-    }
-    else if(algo=="fsrcnn_small")
-    {
-        m_path=m_folderPath+"/FSRCNN/FSRCNN-small_x"+to_string(scale)+".pb";
-        algo="fsrcnn";
-    }
-    else if(algo=="lapsrn")
-    {
-        m_path=m_folderPath+"/LapSRN/LapSRN_x"+to_string(scale)+".pb";
-    }
-    else if(algo=="espcn") /// film
-    {
-        m_path=m_folderPath+"/ESPCN/ESPCN_x"+to_string(scale)+".pb";
-    }
-    else
-    {
-        throw invalid_argument("undefined algo");
-    }
-    m_sr.readModel(m_path);
-    m_sr.setModel(algo, scale);
-    m_algo=algo;
-    m_scale=scale;
-    m_sr.setPreferableTarget(DNN_TARGET_OPENCL);
-    m_parametersSet = true;
+    _superresInferenceEngine.readModel(_inferenceModelPath);
+    _superresInferenceEngine.setModel(algoStr, upscaleFactor);
+    _algo = algo;
+    _upscaleFactor = upscaleFactor;
+    _superresInferenceEngine.setPreferableTarget(cv::dnn::DNN_TARGET_OPENCL); // Use GPU if available
+    _parametersSet = true;
 }
 
-void SuperRes::upRes(const Mat &input, cv::Mat &output)
+void SuperRes::upRes(const cv::Mat &input, cv::Mat &output)
 {
-    if(!m_parametersSet)
+    if (!_parametersSet)
     {
-        throw logic_error("Need to define algo and scale");
+        throw std::logic_error("Need to define algo and scale");
     }
-    m_sr.upsample(input, output);
+    _superresInferenceEngine.upsample(input, output);
 }
 
-const std::string& SuperRes::getAlgo() const
+SuperRes::Algo SuperRes::getAlgo() const
 {
-    return m_algo;
+    return _algo;
 }
 
 unsigned short SuperRes::getScale() const
 {
-    return m_scale;
+    return _upscaleFactor;
 }
 
-bool SuperRes::pathExists(const std::string& path)
+const std::string& SuperRes::getModelsFolderPath() const
 {
-    struct stat info;
-    if(stat(path.c_str(), &info) != 0)
-    {
-        return false;
-    }
-    else if(info.st_mode & S_IFDIR)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    return _modelsFolderPath;
+}
+
+bool SuperRes::PathExists(const std::string &path)
+{
+    struct stat info{};
+    return (stat(path.c_str(), &info) == 0) && (info.st_mode & S_IFDIR);
 }
