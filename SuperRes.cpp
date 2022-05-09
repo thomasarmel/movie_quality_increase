@@ -59,24 +59,24 @@ void SuperRes::setAlgoAndScale(std::string algo, unsigned short scale)
     m_algo=algo;
     m_scale=scale;
     m_sr.setPreferableTarget(DNN_TARGET_OPENCL);
+    m_parametersSet = true;
 }
 
-Mat SuperRes::upRes(Mat &input)
+void SuperRes::upRes(const Mat &input, cv::Mat &output)
 {
-    if(m_algo=="" || m_scale==0)
+    if(!m_parametersSet)
     {
-        throw logic_error("need to define algo and scale");
+        throw logic_error("Need to define algo and scale");
     }
-    Mat img_new;
-    m_sr.upsample(input, img_new);
-    return img_new;
+    m_sr.upsample(input, output);
 }
 
-string SuperRes::getAlgo()
+const std::string& SuperRes::getAlgo() const
 {
     return m_algo;
 }
-unsigned short SuperRes::getScale()
+
+unsigned short SuperRes::getScale() const
 {
     return m_scale;
 }

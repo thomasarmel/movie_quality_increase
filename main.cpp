@@ -17,19 +17,15 @@ using namespace cv;
 using namespace dnn;
 using namespace dnn_superres;
 
-std::queue<std::optional<std::future<Mat>>> waitingSuperresTasks;
+std::queue<std::optional<std::future<size_t>>> waitingSuperresTasks;
 std::queue<size_t> waitingSuperresIds;
 std::mutex mtx;
 std::condition_variable conditionVariableQueueOverflow, conditionVariableQueueEmpty;
 
-void consumeSuperresTask(VideoWriter& videoWriter);
+void consumeSuperresTask(VideoWriter& videoWriter, const std::vector<cv::Mat> &outputMats);
 
 int main()
 {
-    for(size_t i = 0; i < BUFFER_SIZE; i++)
-    {
-        waitingSuperresIds.push(i);
-    }
     cv::VideoCapture cap(std::string(FILENAME), cv::CAP_FFMPEG);
 
     if(!cap.isOpened())
@@ -42,6 +38,10 @@ int main()
     unsigned short oldWidth=cap.get(CAP_PROP_FRAME_WIDTH);
     unsigned short oldHeight=cap.get(CAP_PROP_FRAME_HEIGHT);
 
+    for(size_t i = 0; i < BUFFER_SIZE; ++i)
+    {
+        waitingSuperresIds.push(i);
+    }
     std::vector<SuperRes> superRes(BUFFER_SIZE);
     try
     {
@@ -56,11 +56,12 @@ int main()
         cerr << "Error: " << e.what() << endl;
         return -1;
     }
+    std::vector<cv::Mat> outputMats(BUFFER_SIZE);
 
     VideoWriter video("/tmp/outcpp.avi", VideoWriter::fourcc('M','J','P','G'), fps, Size(oldWidth*superRes[0].getScale(), oldHeight*superRes[0].getScale()));
     unsigned long long numFrame(0);
 
-    std::thread consumerThread(consumeSuperresTask, std::ref(video));
+    std::thread consumerThread(consumeSuperresTask, std::ref(video), std::ref(outputMats));
 
     while(1)
     {
@@ -70,15 +71,15 @@ int main()
             waitingSuperresTasks.push(std::nullopt);
             break;
         }
-        if(waitingSuperresTasks.size() < BUFFER_SIZE || waitingSuperresIds.empty())
+        if(waitingSuperresTasks.size() < BUFFER_SIZE && !waitingSuperresIds.empty())
         {
             size_t superresId = waitingSuperresIds.front();
             waitingSuperresIds.pop();
             std::unique_lock<std::mutex> lck(mtx);
-            waitingSuperresTasks.emplace(std::optional<std::future<Mat>>(std::async(std::launch::async, [&superRes, superresId, framePtr]() -> cv::Mat {
-                cv::Mat newFrame = superRes[superresId].upRes(*framePtr);
+            waitingSuperresTasks.emplace(std::optional<std::future<size_t>>(std::async(std::launch::async, [&superRes, &outputMats, superresId, framePtr]() -> size_t {
+                superRes[superresId].upRes(*framePtr, outputMats[superresId]);
                 waitingSuperresIds.push(superresId);
-                return newFrame;
+                return superresId;
             })));
             conditionVariableQueueEmpty.notify_one();
         }
@@ -92,37 +93,13 @@ int main()
     }
     consumerThread.join();
 
-    /*while(1)
-    {
-        std::vector<std::future<Mat>> promises(BUFFER_SIZE);
-        std::vector<Mat> frames(BUFFER_SIZE);
-        for(int i = 0; i < BUFFER_SIZE; ++i)
-        {
-            cap >> frames[i];
-            if(frames[i].empty())
-            {
-                goto stop; // berk
-            }
-            promises[i] = std::async(std::launch::async, [&superRes, i, &frames] {
-                return superRes[i].upRes(frames[i]);
-            });
-        }
-        for(int i = 0; i < BUFFER_SIZE; ++i)
-        {
-            video.write(promises[i].get());
-        }
-        cout << "\rFrame: " << numFrame << flush;
-        numFrame+= BUFFER_SIZE;
-    }
-
-    stop:*/
     cap.release();
     video.release();
     return 0;
 }
 
 
-void consumeSuperresTask(VideoWriter& videoWriter)
+void consumeSuperresTask(VideoWriter& videoWriter, const std::vector<cv::Mat> &outputMats)
 {
     bool videoFinished = false;
     while(!videoFinished)
@@ -132,10 +109,10 @@ void consumeSuperresTask(VideoWriter& videoWriter)
             std::unique_lock<std::mutex> lck1(mtx);
             conditionVariableQueueEmpty.wait(lck1, [&]() -> bool { return !waitingSuperresTasks.empty(); });
         }
-        std::optional<std::future<Mat>> &task = waitingSuperresTasks.front();
+        std::optional<std::future<size_t>> &task = waitingSuperresTasks.front();
         if(task.has_value())
         {
-            videoWriter.write(task.value().get());
+            videoWriter.write(outputMats[task.value().get()]);
         }
         else
         {

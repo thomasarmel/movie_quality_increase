@@ -16,17 +16,18 @@ public:
     void setFolderPath(const std::string& folderPath);
     std::string getFolderPath();
     void setAlgoAndScale(std::string algo, unsigned short scale);
-    cv::Mat upRes(cv::Mat &input);
-    std::string getAlgo();
-    unsigned short getScale();
+    void upRes(const cv::Mat &input, cv::Mat &output);
+    [[nodiscard]] const std::string& getAlgo() const;
+    [[nodiscard]] unsigned short getScale() const;
 
 private:
     bool pathExists(const std::string& path);
     cv::dnn_superres::DnnSuperResImpl m_sr;
-    std::string m_path="";
-    std::string m_folderPath="";
-    std::string m_algo="";
-    unsigned short m_scale=0;
+    std::string m_path;
+    std::string m_folderPath;
+    std::string m_algo;
+    unsigned short m_scale = 0;
+    bool m_parametersSet = false;
 };
 
 
