@@ -71,6 +71,10 @@ public:
      */
     SuperRes(const std::string &modelFolderPath, Algo algo, unsigned short upscaleFactor);
 
+    SuperRes(const SuperRes&) = delete; // Avoid copies
+
+    SuperRes& operator=(const SuperRes&) = delete; // Avoid copies
+
     /**
      * @brief Destroy the SuperRes object
      */
