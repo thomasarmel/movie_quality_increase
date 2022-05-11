@@ -12,7 +12,7 @@ find_package(OpenCV REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-add_executable(movie_quality_increase main.cpp SuperRes.cpp SuperRes.h)
+add_executable(movie_quality_increase main.cpp SuperRes.cpp SuperRes.h MovieUpscaler.cpp MovieUpscaler.h)
 
 target_include_directories(movie_quality_increase PUBLIC ${OpenCV_INCLUDE_DIRS})
 

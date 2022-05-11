@@ -24,6 +24,8 @@ void SuperRes::setModelFolderPath(const std::string &modelFolderPath)
         throw std::invalid_argument("Cannot access " + modelFolderPath);
     }
     _modelsFolderPath = modelFolderPath;
+
+    // Refresh model if already set
     if (_parametersSet)
     {
         setAlgoAndScale(_algo, _upscaleFactor);
@@ -34,7 +36,7 @@ void SuperRes::setAlgoAndScale(Algo algo, unsigned short upscaleFactor)
 {
     if (upscaleFactor < 2 || (upscaleFactor > 4 && algo != Algo::LapSRN) || (algo == Algo::LapSRN && (upscaleFactor > 8 || upscaleFactor % 2 != 0)))
     {
-        throw std::invalid_argument("undefined upscaleFactor");
+        throw std::invalid_argument("Undefined upscaleFactor");
     }
     std::string algoStr;
     switch (algo)
