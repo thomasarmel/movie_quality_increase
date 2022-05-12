@@ -6,11 +6,11 @@ constexpr std::string_view FILENAME = "/storage/séries/Alerte Cobra/Alerte Cobr
 
 int main()
 {
-    MovieUpscaler movieUpscaler(std::string(FILENAME), std::string("/tmp/outcpp.mp4"), 4, std::string("/opt/dnn_superres_models"));
+    MovieUpscaler movieUpscaler(FILENAME, "/tmp/outcpp.mp4", 2, "/opt/dnn_superres_models");
     try {
         movieUpscaler.run([](size_t frameID) -> bool {
             std::cout << "\rFrame: " << frameID << std::flush;
-            return frameID <= 1000;
+            return true;
         });
     } catch (std::exception const &e) {
         std::cerr << "Error: " << e.what() << std::endl;
