@@ -83,7 +83,7 @@ MovieUpscaler::MovieUpscaler(std::string_view inputVideoFilename, std::string_vi
 
     std::vector<SuperRes> superResArray(_superresInstancesNumber);
 
-    for (unsigned short i = 0; i < _superresInstancesNumber; i++)
+    for (size_t i = 0; i < _superresInstancesNumber; i++)
     {
         superResArray[i].setModelFolderPath(_modelsPath);
         superResArray[i].setAlgoAndScale(DEFAULT_SUPERRES_ALGO, _upscaleFactor);
@@ -116,14 +116,15 @@ MovieUpscaler::MovieUpscaler(std::string_view inputVideoFilename, std::string_vi
             _waitingSuperresTasks.push(std::nullopt); // Tell writer thread to stop
             break;
         }
-        if (_waitingSuperresTasks.size() < _superresInstancesNumber && !_vacantSuperresAndOutputIds.empty()) // Available output and superres task
+        if (_waitingSuperresTasks.size() < _superresInstancesNumber &&
+            !_vacantSuperresAndOutputIds.empty()) // Available output and superres task
         {
             size_t superresId = _vacantSuperresAndOutputIds.front(); // First available superres and output frame
             _vacantSuperresAndOutputIds.pop();
             std::unique_lock<std::mutex> lckQueueEmpty(_mtxQueueEmpty);
             _waitingSuperresTasks.emplace(std::optional<std::future<size_t>>(
                     std::async(std::launch::async,
-                               [this, &superResArray, &outputMats, superresId, framePtr]() -> size_t {
+                               [&superResArray, &outputMats, superresId, framePtr]() -> size_t {
                                    superResArray[superresId].upRes(*framePtr, outputMats[superresId]);
                                    return superresId;
                                }))); // Add new task to superrres a frame

@@ -1,16 +1,25 @@
 #include <iostream>
 #include <exception>
 #include "MovieUpscaler.h"
+#include "Config.h"
 
-constexpr std::string_view FILENAME = "/storage/séries/Alerte Cobra/Alerte Cobra - S24/Alerte Cobra 24x01 Justice Pour Un Ami Disparu - By Willy Le Belge.avi";
-
-int main()
+int main(int argc, char *argv[])
 {
-    MovieUpscaler movieUpscaler(FILENAME, "/tmp/outcpp.mp4", 2, "/opt/dnn_superres_models");
+    Config config;
+    if (!config.parseCommandLine(argc, argv))
+    {
+        config.showHelp(argv[0]);
+        return 2;
+    }
+    MovieUpscaler movieUpscaler(config.getInputFile(), config.getOutputFile(), config.getUpscaleFactor(), config.getModelsDirectoryPath());
+    if (config.getSimultaneousInstances() > 0) // Simultaneous inference instances is set
+    {
+        movieUpscaler.setSuperresInstancesNumber(config.getSimultaneousInstances());
+    }
     try {
         movieUpscaler.run([](size_t frameID) -> bool {
             std::cout << "\rFrame: " << frameID << std::flush;
-            return true;
+            return true; // Continue until the end of the movie
         });
     } catch (std::exception const &e) {
         std::cerr << "Error: " << e.what() << std::endl;

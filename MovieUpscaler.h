@@ -102,7 +102,8 @@ public:
      * @note Callback function takes as argument the current frame number
      * @note If callback function returns false, the MovieUpscaler will stop
      */
-    [[maybe_unused]] void run(const std::optional<std::function<bool(const size_t&)>>& progressCallback = std::nullopt);
+    [[maybe_unused]] void
+    run(const std::optional<std::function<bool(const size_t &)>> &progressCallback = std::nullopt);
 
     static constexpr size_t DEFAULT_SUPERRES_INSTANCES_NUMBER = 8; // 8 simultaneous inference instances by default, reduce if you run out of memory
 
@@ -123,7 +124,8 @@ public:
     [[maybe_unused]] void setSuperresInstancesNumber(size_t superresInstancesNumber);
 
 private:
-    typedef struct {
+    typedef struct
+    {
         unsigned short width;
         unsigned short height;
         double fps; // Frames per second, same in input and output
@@ -131,10 +133,12 @@ private:
 
     [[nodiscard]] bool checkInitialized() const; // Check if all needed parameters are set
     static VideoInformations GetVideoInformations(const cv::VideoCapture &inputVideo);
-    void consumeSuperresFuturesTask(cv::VideoWriter& videoWriter, const std::vector<cv::Mat>& outputMats);
+
+    void consumeSuperresFuturesTask(cv::VideoWriter &videoWriter, const std::vector<cv::Mat> &outputMats);
+
     void initiateTaskAndIdQueues();
 
-    template <typename T>
+    template<typename T>
     void ClearQueue(std::queue<T> &queueToClear)
     {
         queueToClear = std::queue<T>();
