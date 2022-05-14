@@ -23,7 +23,7 @@ public:
      * @return True if configuration is valid
      * @note If user requested help, configuration is not valid and help message will be displayed
      */
-    bool parseCommandLine(int argc, const char* const argv[]);
+    bool parseCommandLine(int argc, const char *const argv[]);
 
     /**
      * @brief Print help message on stdout

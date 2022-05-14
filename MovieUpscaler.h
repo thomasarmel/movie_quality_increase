@@ -126,8 +126,8 @@ public:
 private:
     typedef struct
     {
-        unsigned short width;
-        unsigned short height;
+        unsigned short width; // Movie width, in pixels
+        unsigned short height; // Movie height, in pixels
         double fps; // Frames per second, same in input and output
     } VideoInformations;
 
