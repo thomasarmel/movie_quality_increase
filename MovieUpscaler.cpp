@@ -116,7 +116,8 @@ MovieUpscaler::MovieUpscaler(std::string_view inputVideoFilename, std::string_vi
             _waitingSuperresTasks.push(std::nullopt); // Tell writer thread to stop
             break;
         }
-        if (_waitingSuperresTasks.size() >= _superresInstancesNumber || _vacantSuperresAndOutputIds.empty()) // Wait until there is an available output and superres task
+        if (_waitingSuperresTasks.size() >= _superresInstancesNumber ||
+            _vacantSuperresAndOutputIds.empty()) // Wait until there is an available output and superres task
         {
             std::unique_lock<std::mutex> lckQueueOverflow(_mtxQueueOverflow);
             _conditionVariableQueueOverflow.wait(lckQueueOverflow, [&]() -> bool {

@@ -32,6 +32,16 @@ make
 
 **Models directory path:** The path to the directory containing the models, provided in the repository.
 
+
+### Create upscaled movie:
+
+We will upscale per 2 the movie **old-movie.mp4** to **new-movie.mp4** using the ESPCN model.
+
+```bash
+./movie_quality_increase -f 2 -i old-movie.mp4 -o /tmp/upscale-only-video.mp4 -m ./models
+ffmpeg -i old-movie.mp4 -i /tmp/upscale-only-video.mp4 -c copy -map 0:a? -map 1:v -map 0:s? -shortest new-movie.mp4
+```
+
 ---
 
 Thanks to [@fannymonori](https://github.com/fannymonori/) and
